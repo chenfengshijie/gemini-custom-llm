@@ -76,6 +76,11 @@ export function AuthDialog({
       value: AuthType.USE_VERTEX_AI,
       key: AuthType.USE_VERTEX_AI,
     },
+    {
+      label: 'Use Custom LLM API',
+      value: AuthType.CUSTOM_LLM_API,
+      key: AuthType.CUSTOM_LLM_API,
+    },
   ];
 
   if (settings.merged.security.auth.enforcedType) {
@@ -100,6 +105,13 @@ export function AuthDialog({
 
     if (defaultAuthType) {
       return item.value === defaultAuthType;
+    }
+
+    if (
+      process.env['USE_CUSTOM_LLM'] &&
+      process.env['USE_CUSTOM_LLM'] !== 'false'
+    ) {
+      return item.value === AuthType.CUSTOM_LLM_API;
     }
 
     if (process.env['GEMINI_API_KEY']) {

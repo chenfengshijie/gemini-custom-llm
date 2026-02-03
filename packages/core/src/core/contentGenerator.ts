@@ -24,6 +24,7 @@ import { FakeContentGenerator } from './fakeContentGenerator.js';
 import { parseCustomHeaders } from '../utils/customHeaderUtils.js';
 import { RecordingContentGenerator } from './recordingContentGenerator.js';
 import { getVersion, resolveModel } from '../../index.js';
+import { CustomLLMContentGenerator } from '../custom_llm/index.js';
 
 /**
  * Interface abstracting the core functionalities for generating content and counting tokens.
@@ -54,6 +55,7 @@ export enum AuthType {
   USE_VERTEX_AI = 'vertex-ai',
   LEGACY_CLOUD_SHELL = 'cloud-shell',
   COMPUTE_ADC = 'compute-default-credentials',
+  CUSTOM_LLM_API = 'custom-llm-api',
 }
 
 export type ContentGeneratorConfig = {
@@ -161,6 +163,12 @@ export async function createContentGenerator(
         ),
         gcConfig,
       );
+    }
+    if (config.authType === AuthType.CUSTOM_LLM_API) {
+      const customGenerator = new CustomLLMContentGenerator({
+        userAgent,
+      });
+      return new LoggingContentGenerator(customGenerator, gcConfig);
     }
 
     if (

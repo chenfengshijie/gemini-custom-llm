@@ -24,6 +24,12 @@ function getAuthTypeFromEnv(): AuthType | undefined {
   if (process.env['GOOGLE_GENAI_USE_VERTEXAI'] === 'true') {
     return AuthType.USE_VERTEX_AI;
   }
+  if (
+    process.env['USE_CUSTOM_LLM'] &&
+    process.env['USE_CUSTOM_LLM'] !== 'false'
+  ) {
+    return AuthType.CUSTOM_LLM_API;
+  }
   if (process.env['GEMINI_API_KEY']) {
     return AuthType.USE_GEMINI;
   }

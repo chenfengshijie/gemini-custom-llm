@@ -73,6 +73,16 @@ export const Footer: React.FC = () => {
 
   const showDebugProfiler = debugMode || isDevelopment;
 
+  const useCustomLLM =
+    process.env['USE_CUSTOM_LLM'] &&
+    process.env['USE_CUSTOM_LLM'] !== 'false';
+  const customModelName =
+    process.env['CUSTOM_LLM_MODEL_NAME']?.trim() || model;
+  const customProvider = process.env['CUSTOM_LLM_PROVIDER']?.trim();
+  const displayModelLabel = useCustomLLM
+    ? `${customModelName}${customProvider ? ` (${customProvider})` : ''}`
+    : getDisplayString(model, config.getPreviewFeatures());
+
   return (
     <Box
       justifyContent={justifyContent}
@@ -147,8 +157,10 @@ export const Footer: React.FC = () => {
         <Box alignItems="center" justifyContent="flex-end">
           <Box alignItems="center">
             <Text color={theme.text.accent}>
-              {getDisplayString(model, config.getPreviewFeatures())}
-              <Text color={theme.text.secondary}> /model</Text>
+              {displayModelLabel}
+              {!useCustomLLM && (
+                <Text color={theme.text.secondary}> /model</Text>
+              )}
               {!hideContextPercentage && (
                 <>
                   {' '}

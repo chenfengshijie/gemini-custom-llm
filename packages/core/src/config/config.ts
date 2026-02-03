@@ -1119,6 +1119,16 @@ export class Config {
   }
 
   getModel(): string {
+    if (
+      (process.env['USE_CUSTOM_LLM'] &&
+        process.env['USE_CUSTOM_LLM'] !== 'false') ||
+      this.contentGeneratorConfig?.authType === AuthType.CUSTOM_LLM_API
+    ) {
+      const envModel = process.env['CUSTOM_LLM_MODEL_NAME'];
+      if (envModel && envModel.trim().length > 0) {
+        return envModel.trim();
+      }
+    }
     return this.model;
   }
 

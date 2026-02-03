@@ -382,6 +382,17 @@ export async function main() {
     }
   }
 
+  if (
+    process.env['USE_CUSTOM_LLM'] &&
+    process.env['USE_CUSTOM_LLM'] !== 'false'
+  ) {
+    settings.setValue(
+      SettingScope.User,
+      'security.auth.selectedType',
+      AuthType.CUSTOM_LLM_API,
+    );
+  }
+
   const partialConfig = await loadCliConfig(settings.merged, sessionId, argv, {
     projectHooks: settings.workspace.settings.hooks,
   });

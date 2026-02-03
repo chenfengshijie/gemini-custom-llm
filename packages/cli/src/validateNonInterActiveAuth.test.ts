@@ -36,6 +36,10 @@ describe('validateNonInterActiveAuth', () => {
   let originalEnvGeminiApiKey: string | undefined;
   let originalEnvVertexAi: string | undefined;
   let originalEnvGcp: string | undefined;
+  let originalEnvUseCustomLLM: string | undefined;
+  let originalEnvCustomEndpoint: string | undefined;
+  let originalEnvCustomModel: string | undefined;
+  let originalEnvCustomApiKey: string | undefined;
   let debugLoggerErrorSpy: ReturnType<typeof vi.spyOn>;
   let coreEventsEmitFeedbackSpy: MockInstance;
   let processExitSpy: MockInstance;
@@ -45,9 +49,17 @@ describe('validateNonInterActiveAuth', () => {
     originalEnvGeminiApiKey = process.env['GEMINI_API_KEY'];
     originalEnvVertexAi = process.env['GOOGLE_GENAI_USE_VERTEXAI'];
     originalEnvGcp = process.env['GOOGLE_GENAI_USE_GCA'];
+    originalEnvUseCustomLLM = process.env['USE_CUSTOM_LLM'];
+    originalEnvCustomEndpoint = process.env['CUSTOM_LLM_ENDPOINT'];
+    originalEnvCustomModel = process.env['CUSTOM_LLM_MODEL_NAME'];
+    originalEnvCustomApiKey = process.env['CUSTOM_LLM_API_KEY'];
     delete process.env['GEMINI_API_KEY'];
     delete process.env['GOOGLE_GENAI_USE_VERTEXAI'];
     delete process.env['GOOGLE_GENAI_USE_GCA'];
+    delete process.env['USE_CUSTOM_LLM'];
+    delete process.env['CUSTOM_LLM_ENDPOINT'];
+    delete process.env['CUSTOM_LLM_MODEL_NAME'];
+    delete process.env['CUSTOM_LLM_API_KEY'];
     debugLoggerErrorSpy = vi
       .spyOn(debugLogger, 'error')
       .mockImplementation(() => {});
@@ -97,6 +109,26 @@ describe('validateNonInterActiveAuth', () => {
     } else {
       delete process.env['GOOGLE_GENAI_USE_GCA'];
     }
+    if (originalEnvUseCustomLLM !== undefined) {
+      process.env['USE_CUSTOM_LLM'] = originalEnvUseCustomLLM;
+    } else {
+      delete process.env['USE_CUSTOM_LLM'];
+    }
+    if (originalEnvCustomEndpoint !== undefined) {
+      process.env['CUSTOM_LLM_ENDPOINT'] = originalEnvCustomEndpoint;
+    } else {
+      delete process.env['CUSTOM_LLM_ENDPOINT'];
+    }
+    if (originalEnvCustomModel !== undefined) {
+      process.env['CUSTOM_LLM_MODEL_NAME'] = originalEnvCustomModel;
+    } else {
+      delete process.env['CUSTOM_LLM_MODEL_NAME'];
+    }
+    if (originalEnvCustomApiKey !== undefined) {
+      process.env['CUSTOM_LLM_API_KEY'] = originalEnvCustomApiKey;
+    } else {
+      delete process.env['CUSTOM_LLM_API_KEY'];
+    }
     vi.restoreAllMocks();
   });
 
@@ -143,6 +175,21 @@ describe('validateNonInterActiveAuth', () => {
 
   it('uses USE_GEMINI if GEMINI_API_KEY is set', async () => {
     process.env['GEMINI_API_KEY'] = 'fake-key';
+    const nonInteractiveConfig = createLocalMockConfig({});
+    await validateNonInteractiveAuth(
+      undefined,
+      undefined,
+      nonInteractiveConfig,
+      mockSettings,
+    );
+    expect(processExitSpy).not.toHaveBeenCalled();
+    expect(debugLoggerErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses CUSTOM_LLM_API if USE_CUSTOM_LLM is true', async () => {
+    process.env['USE_CUSTOM_LLM'] = 'true';
+    process.env['CUSTOM_LLM_ENDPOINT'] = 'https://example.com/v1';
+    process.env['CUSTOM_LLM_MODEL_NAME'] = 'custom-model';
     const nonInteractiveConfig = createLocalMockConfig({});
     await validateNonInteractiveAuth(
       undefined,

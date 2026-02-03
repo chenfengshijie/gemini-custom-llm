@@ -212,6 +212,33 @@ gemini
 For Google Workspace accounts and other authentication methods, see the
 [authentication guide](./docs/get-started/authentication.md).
 
+### Option 4: Custom LLM API (OpenAI-compatible endpoint)
+
+**✨ Best for:** Organizations that expose an OpenAI-compatible `/v1/chat/completions` API and want to use Gemini CLI with their own models.
+
+**Benefits:**
+
+- Reuse existing LLM gateways or self-hosted models
+- Keep Gemini CLI workflows while pointing at a different provider
+- Optional controls for temperature, top-p, and max token limits
+
+Set the following environment variables before launching the CLI:
+
+```bash
+export USE_CUSTOM_LLM=true
+export CUSTOM_LLM_ENDPOINT="https://api.your-llm-provider.com/v1"
+export CUSTOM_LLM_API_KEY="YOUR_API_KEY"
+export CUSTOM_LLM_MODEL_NAME="your-model-id"
+
+# Optional tuning parameters
+export CUSTOM_LLM_PROVIDER="acme-llm"   # Display name shown in the footer
+export CUSTOM_LLM_TEMPERATURE=0.7       # Defaults to 0
+export CUSTOM_LLM_TOP_P=1               # Defaults to 1
+export CUSTOM_LLM_MAX_TOKENS=8192       # Defaults to 8192
+```
+
+When `USE_CUSTOM_LLM=true`, Gemini CLI automatically selects **Custom LLM API** as the authentication method and routes all generation requests to your endpoint.
+
 ## 🚀 Getting Started
 
 ### Basic Usage

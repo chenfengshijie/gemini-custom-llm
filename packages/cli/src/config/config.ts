@@ -657,8 +657,17 @@ export async function loadCliConfig(
   const defaultModel = settings.general?.previewFeatures
     ? PREVIEW_GEMINI_MODEL_AUTO
     : DEFAULT_GEMINI_MODEL_AUTO;
+  const customModelFromEnv =
+    process.env['USE_CUSTOM_LLM'] &&
+    process.env['USE_CUSTOM_LLM'] !== 'false' &&
+    process.env['CUSTOM_LLM_MODEL_NAME']
+      ? process.env['CUSTOM_LLM_MODEL_NAME']
+      : undefined;
   const specifiedModel =
-    argv.model || process.env['GEMINI_MODEL'] || settings.model?.name;
+    argv.model ||
+    customModelFromEnv ||
+    process.env['GEMINI_MODEL'] ||
+    settings.model?.name;
 
   const resolvedModel =
     specifiedModel === GEMINI_MODEL_ALIAS_AUTO

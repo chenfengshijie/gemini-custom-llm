@@ -81,9 +81,11 @@ export class StartSessionEvent implements BaseTelemetryEvent {
 
     let useGemini = false;
     let useVertex = false;
+    let useCustom = false;
     if (generatorConfig && generatorConfig.authType) {
       useGemini = generatorConfig.authType === AuthType.USE_GEMINI;
       useVertex = generatorConfig.authType === AuthType.USE_VERTEX_AI;
+      useCustom = generatorConfig.authType === AuthType.CUSTOM_LLM_API;
     }
 
     this['event.name'] = 'cli_config';
@@ -94,7 +96,7 @@ export class StartSessionEvent implements BaseTelemetryEvent {
       typeof config.getSandbox() === 'string' || !!config.getSandbox();
     this.core_tools_enabled = (config.getCoreTools() ?? []).join(',');
     this.approval_mode = config.getApprovalMode();
-    this.api_key_enabled = useGemini || useVertex;
+    this.api_key_enabled = useGemini || useVertex || useCustom;
     this.vertex_ai_enabled = useVertex;
     this.debug_enabled = config.getDebugMode();
     this.mcp_servers = mcpServers ? Object.keys(mcpServers).join(',') : '';

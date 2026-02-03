@@ -27,18 +27,29 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const scriptPath = relative(root, fileURLToPath(import.meta.url));
 const generatedCliDir = join(root, 'packages/cli/src/generated');
-const cliGitCommitFile = join(generatedCliDir, 'git-commit.ts');
+const generatedCliDistDir = join(root, 'packages/cli/dist/src/generated');
 const generatedCoreDir = join(root, 'packages/core/src/generated');
+const generatedCoreDistDir = join(root, 'packages/core/dist/src/generated');
+const cliGitCommitFile = join(generatedCliDir, 'git-commit.ts');
+const cliDistGitCommitFile = join(generatedCliDistDir, 'git-commit.js');
 const coreGitCommitFile = join(generatedCoreDir, 'git-commit.ts');
+const coreDistGitCommitFile = join(generatedCoreDistDir, 'git-commit.js');
 let gitCommitInfo = 'N/A';
 let cliVersion = 'UNKNOWN';
 
-if (!existsSync(generatedCliDir)) {
-  mkdirSync(generatedCliDir, { recursive: true });
-}
+const ensureDir = (dir) => {
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+};
 
-if (!existsSync(generatedCoreDir)) {
-  mkdirSync(generatedCoreDir, { recursive: true });
+for (const dir of [
+  generatedCliDir,
+  generatedCliDistDir,
+  generatedCoreDir,
+  generatedCoreDistDir,
+]) {
+  ensureDir(dir);
 }
 
 try {
@@ -67,5 +78,11 @@ export const GIT_COMMIT_INFO = '${gitCommitInfo}';
 export const CLI_VERSION = '${cliVersion}';
 `;
 
-writeFileSync(cliGitCommitFile, fileContent);
-writeFileSync(coreGitCommitFile, fileContent);
+for (const filePath of [
+  cliGitCommitFile,
+  coreGitCommitFile,
+  cliDistGitCommitFile,
+  coreDistGitCommitFile,
+]) {
+  writeFileSync(filePath, fileContent);
+}

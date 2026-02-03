@@ -17,6 +17,7 @@ Select the authentication method that matches your situation in the table below:
 | Organization users with a company, school, or Google Workspace account | [Login with Google](#login-google)                               | [Yes](#set-gcp)                                             |
 | AI Studio user with a Gemini API key                                   | [Use Gemini API Key](#gemini-api)                                | No                                                          |
 | Google Cloud Vertex AI user                                            | [Vertex AI](#vertex-ai)                                          | [Yes](#set-gcp)                                             |
+| OpenAI-compatible endpoint (self-hosted or third-party)                | [Custom LLM API](#custom-llm)                                    | No                                                          |
 | [Headless mode](#headless)                                             | [Use Gemini API Key](#gemini-api) or<br> [Vertex AI](#vertex-ai) | No (for Gemini API Key)<br> [Yes](#set-gcp) (for Vertex AI) |
 
 ### What is my Google account type?
@@ -214,6 +215,41 @@ pipelines, or if your organization restricts user-based ADC or API key creation.
     ```
 
 5.  Select **Vertex AI**.
+
+## Use Custom LLM API <a id="custom-llm"></a>
+
+If your organization exposes an OpenAI-compatible `/v1/chat/completions` API,
+you can point Gemini CLI at that endpoint instead of Gemini/Vertex AI.
+
+1.  Set the required environment variables:
+
+    ```bash
+    export USE_CUSTOM_LLM=true
+    export CUSTOM_LLM_ENDPOINT="https://api.your-llm-provider.com/v1"
+    export CUSTOM_LLM_API_KEY="YOUR_API_KEY"
+    export CUSTOM_LLM_MODEL_NAME="your-model-id"
+    ```
+
+    Optional tuning parameters:
+
+    ```bash
+    export CUSTOM_LLM_PROVIDER="acme-llm"   # Display name shown in the footer
+    export CUSTOM_LLM_TEMPERATURE=0.7       # Defaults to 0
+    export CUSTOM_LLM_TOP_P=1               # Defaults to 1
+    export CUSTOM_LLM_MAX_TOKENS=8192       # Defaults to 8192
+    ```
+
+2.  Start the CLI:
+
+    ```bash
+    gemini
+    ```
+
+3.  Select **Custom LLM API** when prompted for authentication (Gemini CLI will
+    auto-select it when `USE_CUSTOM_LLM=true`).
+
+> **Note:** Gemini CLI assumes the custom provider supports OpenAI's Chat
+> Completions schema for requests, streaming responses, and tool calls.
 
 ## Set your Google Cloud project <a id="set-gcp"></a>
 

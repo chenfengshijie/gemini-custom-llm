@@ -80,6 +80,9 @@ describe('AuthDialog', () => {
     vi.stubEnv('GEMINI_CLI_USE_COMPUTE_ADC', undefined as unknown as string);
     vi.stubEnv('GEMINI_DEFAULT_AUTH_TYPE', undefined as unknown as string);
     vi.stubEnv('GEMINI_API_KEY', undefined as unknown as string);
+    vi.stubEnv('USE_CUSTOM_LLM', undefined as unknown as string);
+    vi.stubEnv('CUSTOM_LLM_MODEL_NAME', undefined as unknown as string);
+    vi.stubEnv('CUSTOM_LLM_PROVIDER', undefined as unknown as string);
 
     props = {
       config: {
@@ -192,6 +195,14 @@ describe('AuthDialog', () => {
         },
         expected: AuthType.USE_GEMINI,
         desc: 'from GEMINI_API_KEY env var',
+      },
+      {
+        setup: () => {
+          vi.stubEnv('USE_CUSTOM_LLM', 'true');
+          vi.stubEnv('CUSTOM_LLM_MODEL_NAME', 'custom-model');
+        },
+        expected: AuthType.CUSTOM_LLM_API,
+        desc: 'from USE_CUSTOM_LLM env var',
       },
       {
         setup: () => {},

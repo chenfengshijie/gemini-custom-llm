@@ -977,6 +977,9 @@ export class Config {
     );
     // Only assign to instance properties after successful initialization
     this.contentGeneratorConfig = newContentGeneratorConfig;
+    if (this.contentGeneratorConfig.authType === AuthType.CUSTOM_LLM_API) {
+      this.applyCustomLlmModelOverrides();
+    }
 
     // Initialize BaseLlmClient now that the ContentGenerator is available
     this.baseLlmClient = new BaseLlmClient(this.contentGenerator, this);
@@ -1039,6 +1042,26 @@ export class Config {
     }
     const codeAssistServer = getCodeAssistServer(this);
     return getExperiments(codeAssistServer);
+  }
+
+  private applyCustomLlmModelOverrides(): void {
+    const modelName = (process.env['CUSTOM_LLM_MODEL_NAME'] ?? '').trim();
+    if (!modelName) {
+      return;
+    }
+    const overrideTargets = [
+      'gemini-3-pro-preview',
+      'gemini-3-flash-preview',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+    ];
+    for (const target of overrideTargets) {
+      this.modelConfigService.registerRuntimeModelOverride({
+        match: { model: target },
+        modelConfig: { model: modelName },
+      });
+    }
   }
 
   getUserTier(): UserTierId | undefined {

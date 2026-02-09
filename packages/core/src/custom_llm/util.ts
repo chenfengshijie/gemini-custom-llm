@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import type {
   Part,
   Content,
   ContentListUnion,
   GenerateContentConfig,
 } from '@google/genai';
+import { debugLogger } from '../utils/debugLogger.js';
 
 export function isValidFunctionCall(part: Part): part is {
   functionCall: { name: string; args: Record<string, unknown>; id: string };
@@ -27,7 +28,9 @@ export function isValidFunctionCall(part: Part): part is {
     args?: unknown;
     id?: unknown;
   };
-  return typeof name === 'string' && args !== undefined && typeof id === 'string';
+  return (
+    typeof name === 'string' && args !== undefined && typeof id === 'string'
+  );
 }
 
 /**
@@ -99,13 +102,13 @@ export function extractJsonFromLLMOutput(output: string): unknown {
     try {
       return JSON.parse(jsonString);
     } catch (error) {
-      console.error('Failed to parse JSON from fenced block:', {
+      debugLogger.error('Failed to parse JSON from fenced block:', {
         error,
         llmResponse: output,
       });
     }
   } else {
-    console.error('LLM output not in expected JSON format:', output);
+    debugLogger.error('LLM output not in expected JSON format:', output);
   }
   return undefined;
 }
@@ -146,14 +149,21 @@ export function extractToolFunctions(
   for (const tool of requestConfig.tools) {
     if ('functionDeclarations' in tool) {
       for (const func of tool.functionDeclarations ?? []) {
+        const rawParameters =
+          'parametersJsonSchema' in func
+            ? func.parametersJsonSchema
+            : func.parameters;
+        const parameters =
+          rawParameters ?? ({ type: 'object', properties: {} } as const);
         result.push({
           type: 'function',
           function: {
             name: func.name ?? '',
             description: func.description ?? '',
-            parameters: convertTypeValuesToLowerCase(
-              func.parameters,
-            ) as Record<string, unknown>,
+            parameters: convertTypeValuesToLowerCase(parameters) as Record<
+              string,
+              unknown
+            >,
           },
         });
       }
@@ -171,12 +181,12 @@ export function normalizeContents(contents: ContentListUnion): Content[] {
       if (typeof item === 'string') {
         return { role: 'user', parts: [{ text: item }] };
       }
-      if (typeof item === 'object' && item !== null && 'parts' in item) {
-        return item as Content;
+      if (isContent(item)) {
+        return item;
       }
       return {
         role: 'user',
-        parts: [item as Part],
+        parts: [toPart(item)],
       };
     });
   }
@@ -188,13 +198,21 @@ export function normalizeContents(contents: ContentListUnion): Content[] {
       },
     ];
   }
-  if (typeof contents === 'object' && contents !== null && 'parts' in contents) {
-    return [contents as Content];
+  if (isContent(contents)) {
+    return [contents];
   }
   return [
     {
       role: 'user',
-      parts: [contents as Part],
+      parts: [toPart(contents)],
     },
   ];
+}
+
+function isContent(value: unknown): value is Content {
+  return typeof value === 'object' && value !== null && 'parts' in value;
+}
+
+function toPart(value: unknown): Part {
+  return value as Part;
 }

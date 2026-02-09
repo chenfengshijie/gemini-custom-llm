@@ -34,6 +34,7 @@ import { CodeAssistServer } from '../code_assist/server.js';
 import { toContents } from '../code_assist/converter.js';
 import { isStructuredError } from '../utils/quotaErrorDetection.js';
 import { runInDevTraceSpan, type SpanMetadata } from '../telemetry/trace.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 interface StructuredError {
   status: number;
@@ -68,6 +69,22 @@ export class LoggingContentGenerator implements ContentGenerator {
     serverDetails?: ServerDetails,
   ): void {
     const requestText = JSON.stringify(contents);
+    if (shouldDebugApi(promptId)) {
+      debugLogger.log(
+        '[api-request]',
+        JSON.stringify(
+          {
+            model,
+            promptId,
+            server: serverDetails,
+            generationConfig,
+            contents,
+          },
+          null,
+          2,
+        ),
+      );
+    }
     logApiRequest(
       this.config,
       new ApiRequestEvent(
@@ -128,6 +145,27 @@ export class LoggingContentGenerator implements ContentGenerator {
     generationConfig?: GenerateContentConfig,
     serverDetails?: ServerDetails,
   ): void {
+    if (shouldDebugApi(prompt_id)) {
+      debugLogger.log(
+        '[api-response]',
+        JSON.stringify(
+          {
+            model,
+            promptId: prompt_id,
+            durationMs,
+            responseId,
+            server: serverDetails,
+            generationConfig,
+            usageMetadata,
+            responseCandidates,
+            responseText,
+            requestContents,
+          },
+          null,
+          2,
+        ),
+      );
+    }
     logApiResponse(
       this.config,
       new ApiResponseEvent(
@@ -161,6 +199,25 @@ export class LoggingContentGenerator implements ContentGenerator {
   ): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorType = error instanceof Error ? error.name : 'unknown';
+    if (shouldDebugApi(prompt_id)) {
+      debugLogger.error(
+        '[api-error]',
+        JSON.stringify(
+          {
+            model,
+            promptId: prompt_id,
+            durationMs,
+            errorMessage,
+            errorType,
+            server: serverDetails,
+            generationConfig,
+            requestContents,
+          },
+          null,
+          2,
+        ),
+      );
+    }
 
     logApiError(
       this.config,
@@ -398,4 +455,11 @@ export class LoggingContentGenerator implements ContentGenerator {
       },
     );
   }
+}
+
+function shouldDebugApi(promptId: string): boolean {
+  return (
+    process.env['GEMINI_DEBUG_API'] === '1' &&
+    (process.env['GEMINI_DEBUG_API_ALL'] === '1' || /########\d+$/.test(promptId))
+  );
 }

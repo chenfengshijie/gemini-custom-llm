@@ -6,16 +6,36 @@
 
 import {
   GenerateContentResponse,
+  type FunctionCall,
   type Part,
   type GenerateContentParameters,
 } from '@google/genai';
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import {
   normalizeContents,
   isValidFunctionCall,
   isValidFunctionResponse,
 } from './util.js';
 import type { ToolCallMap } from './types.js';
+
+type OpenAIToolCall =
+  | {
+      id?: string;
+      type: 'function';
+      function: { name: string; arguments: string };
+    }
+  | {
+      id?: string;
+      type: 'custom';
+      custom: { name: string; input: string };
+    };
+
+type OpenAIStreamToolCall = {
+  index: number;
+  id?: string;
+  type?: string;
+  function?: { name?: string; arguments?: string };
+};
 
 export class ModelConverter {
   /**
@@ -82,7 +102,7 @@ export class ModelConverter {
         role: 'tool',
         content: part.functionResponse.response.error
           ? `Error: ${part.functionResponse.response.error}`
-          : part.functionResponse.response.output ?? '',
+          : (part.functionResponse.response.output ?? ''),
       });
     }
   }
@@ -130,43 +150,40 @@ export class ModelConverter {
         },
       ];
     } else if (choice.message.tool_calls) {
+      const toolCalls = choice.message.tool_calls as OpenAIToolCall[];
+      const functionCalls: FunctionCall[] = [];
+      const parts: Part[] = [];
       res.candidates = [
         {
           content: {
-            parts: choice.message.tool_calls
-              .map((toolCall) => {
-                if (toolCall.type === 'function') {
-                  return {
-                    functionCall: {
-                      id: toolCall.id,
-                      name: toolCall.function.name,
-                      args: safeJsonParse(toolCall.function.arguments),
-                    },
-                  };
-                }
-
-                if (toolCall.type === 'custom') {
-                  return {
-                    functionCall: {
-                      id: toolCall.id,
-                      name: toolCall.custom.name,
-                      args: { input: toolCall.custom.input },
-                    },
-                  };
-                }
-
-                return null;
-              })
-              .filter(
-                (part): part is { functionCall: { id: string; name: string; args: Record<string, unknown> } } =>
-                  part !== null,
-              ),
-            role: 'model',
+            parts,
           },
           index: 0,
           safetyRatings: [],
         },
       ];
+      attachFunctionCalls(res, functionCalls);
+      for (const toolCall of toolCalls) {
+        if (toolCall.type === 'function') {
+          const functionCall: FunctionCall = {
+            id: toolCall.id,
+            name: toolCall.function.name,
+            args: safeJsonParse(toolCall.function.arguments),
+          };
+          functionCalls.push(functionCall);
+          parts.push({ functionCall });
+          continue;
+        }
+        if (toolCall.type === 'custom') {
+          const functionCall: FunctionCall = {
+            id: toolCall.id,
+            name: toolCall.custom.name,
+            args: { input: toolCall.custom.input },
+          };
+          functionCalls.push(functionCall);
+          parts.push({ functionCall });
+        }
+      }
     }
 
     res.usageMetadata = {
@@ -186,6 +203,7 @@ export class ModelConverter {
     toolCallMap: ToolCallMap,
   ): { response?: GenerateContentResponse } {
     const delta = chunk.choices[0]?.delta;
+    const finishReason = chunk.choices[0]?.finish_reason;
     if (!delta) {
       return {};
     }
@@ -233,13 +251,21 @@ export class ModelConverter {
       }
     }
 
-    if (delta.tool_calls && delta.tool_calls.length > 0) {
-      const call = delta.tool_calls[0];
-      if (call.type === 'function') {
+    const toolCalls = delta.tool_calls as OpenAIStreamToolCall[] | undefined;
+    if (toolCalls && toolCalls.length > 0) {
+      for (const call of toolCalls) {
+        if (call.type && call.type !== 'function') {
+          continue;
+        }
         const current = toolCallMap.get(call.index) ?? {
+          id: undefined,
           name: '',
           arguments: '',
         };
+
+        if (call.id) {
+          current.id = call.id;
+        }
 
         if (call.function?.name) {
           current.name = call.function.name;
@@ -250,31 +276,64 @@ export class ModelConverter {
         }
 
         toolCallMap.set(call.index, current);
-
-        const response = new GenerateContentResponse();
-        response.candidates = [
-          {
-            content: {
-              role: 'model',
-              parts: [
-                {
-                  functionCall: {
-                    name: current.name,
-                    args: safeJsonParse(current.arguments),
-                  },
-                },
-              ],
-            },
-            index: 0,
-            safetyRatings: [],
-          },
-        ];
-        return { response };
       }
+    }
+
+    if (finishReason === 'tool_calls' && toolCallMap.size > 0) {
+      return { response: flushToolCallMap(toolCallMap) };
     }
 
     return {};
   }
+}
+
+function flushToolCallMap(toolCallMap: ToolCallMap): GenerateContentResponse {
+  const functionCalls: FunctionCall[] = [];
+  const parts: Part[] = [];
+  for (const [, data] of Array.from(toolCallMap.entries()).sort(
+    ([left], [right]) => left - right,
+  )) {
+    if (!data.name) {
+      continue;
+    }
+    const functionCall: FunctionCall = {
+      id: data.id,
+      name: data.name,
+      args: safeJsonParse(data.arguments),
+    };
+    functionCalls.push(functionCall);
+    parts.push({ functionCall });
+  }
+
+  toolCallMap.clear();
+
+  const response = new GenerateContentResponse();
+  response.candidates = [
+    {
+      content: {
+        role: 'model',
+        parts,
+      },
+      index: 0,
+      safetyRatings: [],
+    },
+  ];
+  attachFunctionCalls(response, functionCalls);
+  return response;
+}
+
+function attachFunctionCalls(
+  response: GenerateContentResponse,
+  functionCalls: FunctionCall[],
+): void {
+  if (functionCalls.length === 0) {
+    return;
+  }
+  Object.defineProperty(response, 'functionCalls', {
+    value: functionCalls,
+    enumerable: true,
+    configurable: true,
+  });
 }
 
 function safeJsonParse(raw: string): Record<string, unknown> {
